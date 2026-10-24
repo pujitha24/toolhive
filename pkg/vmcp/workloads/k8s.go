@@ -26,14 +26,17 @@ import (
 	"github.com/stacklok/toolhive/pkg/workloads/types"
 )
 
+// MetadataKeyWorkloadStatus is the backend metadata key holding the workload phase.
+// It is runtime state and must not feed rollout-driving config such as static vMCP ConfigMaps.
+const MetadataKeyWorkloadStatus = "workload_status"
+
 const (
-	metadataToolTypeMCP       = "mcp"
-	transportTypeUnknown      = "unknown"
-	metadataKeyToolType       = "tool_type"
-	metadataKeyWorkloadType   = "workload_type"
-	metadataKeyWorkloadStatus = "workload_status"
-	metadataKeyNamespace      = "namespace"
-	metadataKeyRemoteURL      = "remote_url"
+	metadataToolTypeMCP     = "mcp"
+	transportTypeUnknown    = "unknown"
+	metadataKeyToolType     = "tool_type"
+	metadataKeyWorkloadType = "workload_type"
+	metadataKeyNamespace    = "namespace"
+	metadataKeyRemoteURL    = "remote_url"
 )
 
 // k8sDiscoverer is a direct implementation of Discoverer for Kubernetes workloads.
@@ -281,7 +284,7 @@ func (d *k8sDiscoverer) mcpServerToBackend(ctx context.Context, mcpServer *mcpv1
 	// Set system metadata (these override user labels to prevent conflicts)
 	backend.Metadata[metadataKeyToolType] = metadataToolTypeMCP
 	backend.Metadata[metadataKeyWorkloadType] = "mcp_server"
-	backend.Metadata[metadataKeyWorkloadStatus] = string(mcpServer.Status.Phase)
+	backend.Metadata[MetadataKeyWorkloadStatus] = string(mcpServer.Status.Phase)
 	if mcpServer.Namespace != "" {
 		backend.Metadata[metadataKeyNamespace] = mcpServer.Namespace
 	}
@@ -447,7 +450,7 @@ func (d *k8sDiscoverer) mcpRemoteProxyToBackend(ctx context.Context, proxy *mcpv
 	// Set system metadata (these override user labels to prevent conflicts)
 	backend.Metadata[metadataKeyToolType] = metadataToolTypeMCP
 	backend.Metadata[metadataKeyWorkloadType] = "remote_proxy"
-	backend.Metadata[metadataKeyWorkloadStatus] = string(proxy.Status.Phase)
+	backend.Metadata[MetadataKeyWorkloadStatus] = string(proxy.Status.Phase)
 	backend.Metadata[metadataKeyRemoteURL] = proxy.Spec.RemoteURL
 	if proxy.Namespace != "" {
 		backend.Metadata[metadataKeyNamespace] = proxy.Namespace
@@ -558,7 +561,7 @@ func (d *k8sDiscoverer) mcpServerEntryToBackend(ctx context.Context, entry *mcpv
 	// Set system metadata (these override user labels to prevent conflicts)
 	backend.Metadata[metadataKeyToolType] = metadataToolTypeMCP
 	backend.Metadata[metadataKeyWorkloadType] = "server_entry"
-	backend.Metadata[metadataKeyWorkloadStatus] = string(entry.Status.Phase)
+	backend.Metadata[MetadataKeyWorkloadStatus] = string(entry.Status.Phase)
 	backend.Metadata[metadataKeyRemoteURL] = entry.Spec.RemoteURL
 	if entry.Namespace != "" {
 		backend.Metadata[metadataKeyNamespace] = entry.Namespace

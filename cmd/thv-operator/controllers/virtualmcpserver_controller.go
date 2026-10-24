@@ -3054,8 +3054,24 @@ func resolveFirstUpstreamProvider(embeddedCfg *mcpv1beta1.EmbeddedAuthServerConf
 	return authserver.ResolveFirstUpstreamName(names)
 }
 
+// staticBackendMetadata returns a copy of the backend metadata without runtime-only keys.
+// The workload phase changes whenever a backend pod is replaced; embedding it would change the
+// ConfigMap checksum and roll out the vMCP Deployment on every backend health transition.
+// vMCP does not read it in static mode (backends are assumed healthy and health-checked later).
+func staticBackendMetadata(metadata map[string]string) map[string]string {
+	if _, ok := metadata[workloads.MetadataKeyWorkloadStatus]; !ok {
+		return metadata
+	}
+	filtered := maps.Clone(metadata)
+	delete(filtered, workloads.MetadataKeyWorkloadStatus)
+	if len(filtered) == 0 {
+		return nil
+	}
+	return filtered
+}
+
 // convertBackendsToStaticBackends converts Backend objects to StaticBackendConfig for ConfigMap embedding.
-// Preserves metadata and uses transport types from workload Specs.
+// Preserves metadata (except runtime workload status) and uses transport types from workload Specs.
 // Logs warnings when backends are skipped due to missing URL or transport information.
 // caBundlePathMap maps backend names to their CA bundle mount paths (populated for MCPServerEntry backends).
 // excludedBackends names backends whose outgoing auth strategy failed to build (see
@@ -3094,7 +3110,7 @@ func convertBackendsToStaticBackends(
 			Name:      backend.Name,
 			URL:       backend.BaseURL,
 			Transport: transport,
-			Metadata:  backend.Metadata,
+			Metadata:  staticBackendMetadata(backend.Metadata),
 		}
 
 		if caBundlePath, ok := caBundlePathMap[backend.Name]; ok {

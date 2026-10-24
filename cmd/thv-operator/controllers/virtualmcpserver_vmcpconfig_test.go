@@ -2810,3 +2810,30 @@ func TestBuildCABundlePathMap(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertBackendsToStaticBackends_OmitsWorkloadStatus verifies that transient workload
+// status does not reach the static config, so Ready -> Pending -> Ready transitions leave the
+// generated config (and therefore its checksum) unchanged, while real changes still alter it.
+func TestConvertBackendsToStaticBackends_OmitsWorkloadStatus(t *testing.T) {
+	t.Parallel()
+
+	build := func(status, url string) []vmcpconfig.StaticBackendConfig {
+		backends := []vmcp.Backend{{
+			Name:          "prometheus",
+			BaseURL:       url,
+			TransportType: "streamable-http",
+			Metadata:      map[string]string{"workload_status": status, "tool_type": "mcp"},
+		}}
+		return convertBackendsToStaticBackends(
+			t.Context(), backends, map[string]string{"prometheus": "streamable-http"}, nil, nil)
+	}
+
+	ready := build("Ready", "http://a:8080/mcp")
+	pending := build("Pending", "http://a:8080/mcp")
+	assert.Equal(t, ready, pending, "workload status must not affect the static config")
+	assert.NotContains(t, ready[0].Metadata, "workload_status")
+	assert.Equal(t, "mcp", ready[0].Metadata["tool_type"], "other metadata is preserved")
+
+	moved := build("Ready", "http://b:8080/mcp")
+	assert.NotEqual(t, ready, moved, "a real URL change must still change the config")
+}
